@@ -11,7 +11,7 @@ app = Flask(__name__)
 # Configura tu API Key aquí o usa variable de entorno
 os.environ["GOOGLE_API_KEY"] = "AIzaSyA0Gzgj7_7wnPysCVQXwNNQJS3L_M0jKXg"
 
-def extract_json_from_pdf(pdf_path, prompt, formatoJSON):
+def extract_json_from_pdf(pdf_path, prompt):
     client = genai.Client()
     try:
         sample_pdf = client.files.upload(file=Path(pdf_path))
@@ -42,34 +42,6 @@ def extract_json_from_pdf(pdf_path, prompt, formatoJSON):
     except Exception as e:
         return None, f"Error al generar contenido: {str(e)}"
 
-# Formato JSON base (puedes moverlo a un archivo si prefieres)
-formatoJSON = '''
-{
-  "encabezado": {
-    "numConsecutivo": "número de la factura",
-    "numOrdenCompra": "número de la orden relacionada a la factura",
-    "cedulaProveedor": "número de identificación del proveedor",
-    "nombreProveedor": "nombre del proveedor",
-    "fechaEmision": "la fecha de la factura",
-    "moneda": "nombre o iniciales de la moneda",
-    "subtotal": "valor subtotal de la factura",
-    "total": "valor total de la factura"
-  },
-  "lineas": [
-    {
-      "numero": "número de la línea",
-      "descripcion": "descripción de la línea",
-      "cantidad": "cantidad solicitada",
-      "precioUnitario": "precio unitario del producto en línea",
-      "unidMedida": "unidad de medida de la línea",
-      "subtotal": "valor subtotal de la línea",
-      "total": "valor total de la línea"
-    }
-    // (otras líneas aquí)
-  ]
-}
-'''
-
 @app.route('/extract-json', methods=['POST'])
 def extract_json():
     data = request.get_json()
@@ -87,7 +59,7 @@ def extract_json():
         return jsonify({'error': f'Error al guardar el PDF temporal: {str(e)}'}), 500
 
     # Procesa el PDF como antes
-    result, error = extract_json_from_pdf(tmp_path, prompt, formatoJSON)
+    result, error = extract_json_from_pdf(tmp_path, prompt)
     os.remove(tmp_path)  # Elimina el archivo temporal
 
     if error:
