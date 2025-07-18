@@ -3,6 +3,8 @@ from google import genai
 from pathlib import Path
 import os
 import json
+import base64
+import tempfile
 
 app = Flask(__name__)
 
@@ -72,12 +74,23 @@ formatoJSON = '''
 @app.route('/extract-json', methods=['POST'])
 def extract_json():
     data = request.get_json()
-    pdf_path = data.get('pdf_path')
+    pdf_base64 = data.get('pdf_base64')
     prompt = data.get('prompt')
-    if not pdf_path or not prompt:
-        return jsonify({'error': 'Faltan pdf_path o prompt'}), 400
-    
-    result, error = extract_json_from_pdf(pdf_path, prompt, formatoJSON)
+    if not pdf_base64 or not prompt:
+        return jsonify({'error': 'Faltan pdf_base64 o prompt'}), 400
+
+    # Decodifica y guarda el PDF temporalmente
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            tmp.write(base64.b64decode(pdf_base64))
+            tmp_path = tmp.name
+    except Exception as e:
+        return jsonify({'error': f'Error al guardar el PDF temporal: {str(e)}'}), 500
+
+    # Procesa el PDF como antes
+    result, error = extract_json_from_pdf(tmp_path, prompt, formatoJSON)
+    os.remove(tmp_path)  # Elimina el archivo temporal
+
     if error:
         return jsonify({'error': error}), 500
     return jsonify(result)
