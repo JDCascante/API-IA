@@ -18,12 +18,11 @@ def extract_json_from_pdf(pdf_path, prompt, formatoJSON):
     except Exception as e:
         return None, f"Error al subir el PDF: {str(e)}"
     
-    full_prompt = prompt.replace("{formatoJSON}", formatoJSON)
     gemini_model = "gemini-2.0-flash"
     try:
         response = client.models.generate_content(
             model=gemini_model,
-            contents=[full_prompt, sample_pdf],
+            contents=[prompt, sample_pdf],
         )
         text = response.text if response.text is not None else ""
         # Limpia delimitadores de bloque de código Markdown
