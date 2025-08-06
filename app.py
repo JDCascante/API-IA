@@ -66,5 +66,24 @@ def extract_json():
         return jsonify({'error': error}), 500
     return jsonify(result)
 
+@app.route('/ask', methods=['POST'])
+def ask_model():
+    data = request.get_json()
+    prompt = data.get('prompt')
+    if not prompt:
+        return jsonify({'error': 'Falta el prompt'}), 400
+
+    try:
+        client = genai.Client()
+        gemini_model = "gemini-2.0-flash"
+        response = client.models.generate_content(
+            model=gemini_model,
+            contents=[prompt]
+        )
+        text = response.text if response.text else ""
+        return jsonify({'response': text})
+    except Exception as e:
+        return jsonify({'error': f'Error al generar contenido: {str(e)}'}), 500
+        
 if __name__ == '__main__':
     app.run(debug=True) 
