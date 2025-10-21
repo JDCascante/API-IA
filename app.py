@@ -75,7 +75,7 @@ def ask_model():
 
     try:
         client = genai.Client()
-        gemini_model = "gemini-2.0-flash"
+        gemini_model = "gemini-2.5-flash"
         response = client.models.generate_content(
             model=gemini_model,
             contents=[prompt]
