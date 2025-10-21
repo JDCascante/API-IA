@@ -6,10 +6,10 @@ import json
 import base64
 import tempfile
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='public', static_url_path='')
 
 # Configura tu API Key aquí o usa variable de entorno
-os.environ["GOOGLE_API_KEY"] = "AIzaSyA0Gzgj7_7wnPysCVQXwNNQJS3L_M0jKXg"
+os.environ["GOOGLE_API_KEY"] = "AIzaSyB1nYcZbCYDWSWz5BeqLSweqNEHPL4dmWg"
 
 def extract_json_from_pdf(pdf_path, prompt):
     client = genai.Client()
@@ -18,7 +18,7 @@ def extract_json_from_pdf(pdf_path, prompt):
     except Exception as e:
         return None, f"Error al subir el PDF: {str(e)}"
     
-    gemini_model = "gemini-2.0-flash"
+    gemini_model = "gemini-2.5-flash"
     try:
         response = client.models.generate_content(
             model=gemini_model,
@@ -84,6 +84,10 @@ def ask_model():
         return jsonify({'response': text})
     except Exception as e:
         return jsonify({'error': f'Error al generar contenido: {str(e)}'}), 500
-        
+
+@app.route('/', methods=['GET'])
+def index():
+    return app.send_static_file('index.html')
+
 if __name__ == '__main__':
     app.run(debug=True) 
