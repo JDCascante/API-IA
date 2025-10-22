@@ -13,7 +13,7 @@ app = Flask(__name__, static_folder='public', static_url_path='')
 # Configura tu API Key aquí o usa variable de entorno
 os.environ["GOOGLE_API_KEY"] = "AIzaSyB1nYcZbCYDWSWz5BeqLSweqNEHPL4dmWg"
 
-def extract_json_from_pdf(pdf_path, prompt, max_retries=3, wait_time=5):
+def extract_json_from_pdf(pdf_path, prompt, max_retries=5, wait_time=10):
     """
     Extrae JSON de un PDF usando Gemini API con reintentos.
 
