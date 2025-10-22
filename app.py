@@ -1,3 +1,5 @@
+import time
+
 from flask import Flask, request, jsonify
 from google import genai
 from pathlib import Path
@@ -11,36 +13,96 @@ app = Flask(__name__, static_folder='public', static_url_path='')
 # Configura tu API Key aquí o usa variable de entorno
 os.environ["GOOGLE_API_KEY"] = "AIzaSyB1nYcZbCYDWSWz5BeqLSweqNEHPL4dmWg"
 
-def extract_json_from_pdf(pdf_path, prompt):
+def extract_json_from_pdf(pdf_path, prompt, max_retries=3, wait_time=5):
+    """
+    Extrae JSON de un PDF usando Gemini API con reintentos.
+
+    Args:
+        pdf_path: Ruta al archivo PDF
+        prompt: Prompt para el modelo
+        max_retries: Número máximo de intentos (default: 3)
+        wait_time: Tiempo de espera entre intentos en segundos (default: 5)
+
+    Returns:
+        tuple: (data, error) donde data es el JSON o None, y error es el mensaje de error o None
+    """
     client = genai.Client()
+
+    # Subir el archivo PDF una sola vez
     try:
         sample_pdf = client.files.upload(file=Path(pdf_path))
+        # Esperar a que el archivo se procese
+        time.sleep(2)
     except Exception as e:
         return None, f"Error al subir el PDF: {str(e)}"
-    
+
     gemini_model = "gemini-2.5-flash"
-    try:
-        response = client.models.generate_content(
-            model=gemini_model,
-            contents=[prompt, sample_pdf],
-        )
-        text = response.text if response.text is not None else ""
-        # Limpia delimitadores de bloque de código Markdown
-        if text.strip().startswith("```json"):
-            text = text.strip()[7:]  # Elimina '```json\n'
-        if text.strip().startswith("```"):
-            text = text.strip()[3:]  # Elimina '```\n'
-        if text.strip().endswith("```"):
-            text = text.strip()[:-3]  # Elimina '\n```'
-        text = text.strip()
-        # Intenta convertir a JSON
+
+    # Intentar obtener respuesta válida
+    for attempt in range(max_retries):
         try:
-            data = json.loads(text)
-            return data, None
+            print(f"Intento {attempt + 1} de {max_retries}...")
+
+            response = client.models.generate_content(
+                model=gemini_model,
+                contents=[prompt, sample_pdf],
+            )
+
+            # Verificar si hay respuesta
+            if not response or not response.text:
+                print(f"Respuesta vacía en intento {attempt + 1}. Reintentando...")
+                time.sleep(wait_time)
+                continue
+
+            text = response.text.strip()
+
+            # Verificar que no esté vacío
+            if not text or text.lower() in ['null', 'none', '']:
+                print(f"Respuesta nula o vacía en intento {attempt + 1}. Reintentando...")
+                time.sleep(wait_time)
+                continue
+
+            # Limpiar delimitadores de bloque de código Markdown
+            if text.startswith("```json"):
+                text = text[7:]
+            elif text.startswith("```"):
+                text = text[3:]
+
+            if text.endswith("```"):
+                text = text[:-3]
+
+            text = text.strip()
+
+            # Intentar convertir a JSON
+            try:
+                data = json.loads(text)
+
+                # Verificar que el JSON no esté vacío
+                if not data or (isinstance(data, dict) and len(data) == 0):
+                    print(f"JSON vacío en intento {attempt + 1}. Reintentando...")
+                    time.sleep(wait_time)
+                    continue
+
+                print(f"✓ JSON válido obtenido en intento {attempt + 1}")
+                return data, None
+
+            except json.JSONDecodeError as e:
+                print(f"Error al parsear JSON en intento {attempt + 1}: {str(e)}")
+                if attempt < max_retries - 1:
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    return None, f"Respuesta no es JSON válido después de {max_retries} intentos: {str(e)}. Última respuesta: {text}"
+
         except Exception as e:
-            return None, f"Respuesta no es JSON válido: {str(e)}. Respuesta: {text}"
-    except Exception as e:
-        return None, f"Error al generar contenido: {str(e)}"
+            print(f"Error en intento {attempt + 1}: {str(e)}")
+            if attempt < max_retries - 1:
+                time.sleep(wait_time)
+                continue
+            else:
+                return None, f"Error al generar contenido después de {max_retries} intentos: {str(e)}"
+
+    return None, f"No se pudo obtener una respuesta válida después de {max_retries} intentos"
 
 @app.route('/extract-json', methods=['POST'])
 def extract_json():
